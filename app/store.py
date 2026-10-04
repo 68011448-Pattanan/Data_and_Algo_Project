@@ -424,17 +424,19 @@ class ParkingStore:
             if not row.rowcount: raise ParkingError("Incident not found.",404)
             return {"message": "Incident resolved"}
 
-    def simulate(self, action, count=10):
+    def simulate(self, action, count=10, destination=None):
         with self.lock:
+            if destination is not None: self._validate_destination(destination)
             if action in ("entry","generate","queue"):
                 if action == "queue": self.simulate("fill")
                 results = []
                 for _ in range(1 if action == "entry" else 3 if action == "queue" else count):
-                    results.append(self.enter(f"SIM{uuid.uuid4().hex[:8].upper()}", random.randrange(11), True))
+                    results.append(self.enter(f"SIM{uuid.uuid4().hex[:8].upper()}", random.randrange(11) if destination is None else destination, True))
                 return {"message": f"Generated {len(results)} demo arrivals", "vehicle": results[-1]["vehicle"], "algorithm": results[-1]["algorithm"]}
             if action == "exit":
-                if not self.occupied: raise ParkingError("No vehicles to exit.")
-                return self.exit(next(iter(self.occupied.values())))
+                demo_plate = next((p for p in self.occupied.values() if self.active[p]['is_demo']), None)
+                if demo_plate is None: raise ParkingError("No parked demo vehicles available to simulate an exit.")
+                return self.exit(demo_plate)
             with self.transaction():
                 if action == "fill":
                     self._promote()

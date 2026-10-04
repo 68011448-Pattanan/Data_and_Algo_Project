@@ -26,9 +26,10 @@ The two pasted master prompts supplied in this chat are identical. The PDF is a 
 | Analytics insights | Dynamic top-bay and peak-hour summaries; explicitly avoids causal claims without evidence |
 | Data lifecycle | Actual state transitions persisted in SQLite; architecture and project pages explain the lifecycle |
 | Algorithm lab | Real hash/queue operations, A* recommendation/animation, Merge Sort animation and complexity explanations |
-| A* vs Dijkstra | Same start/bay and graph; both shortest-route distances and actual expanded-node counts |
+| Algorithm efficiency | A* vs Dijkstra, hash vs linear lookup, deque vs list front removal, Merge Sort vs Insertion Sort; repeated measured runtimes, median/mean/range, samples, work counts and validated equal outputs |
 | Architecture | Clickable component diagram with role explanations; animated flow arrows |
-| Simulation | Entry, exit, generate 10/100, fill all bays, create queue, clear and reset demo data |
+| Simulation | Dedicated control page: selected destination, 1/5/10/100 arrivals, demo-only exits, fill/queue/clear/reset, timed traffic with start/pause/step and four traffic modes |
+| Scenario testing | 18 isolated real-engine cases with expected/actual checks, elapsed runtime, steps, final state and pass/fail; run individually or together without changing live records |
 | Presentation | 12 steps, Previous/Next, links to working demonstrations and Fullscreen |
 | Project context | Course 01416206, group Understaffed, problem, objectives, workflow, algorithms, stakeholders, limitations and future work |
 | Consistency | Lock/transaction, active-plate and active-slot unique indexes, rollback reload, no closed/occupied recommendations |
@@ -47,9 +48,9 @@ The two pasted master prompts supplied in this chat are identical. The PDF is a 
 
 ## Validation record
 
-* 26 automated tests pass covering core algorithms, state transitions, concurrency, restart persistence, fees, analytics and API validation.
-* `node --check static/app.js` passes; Python modules compile successfully.
-* `docker compose -f docker.yaml config --quiet` passes. Container image build/run has not been exercised.
+* 33 automated tests pass covering core algorithms, state transitions, concurrency, restart persistence, fees, analytics, equivalent benchmark outputs, scenario isolation, demo-only exits and API validation. All 18 operational scenarios pass on the 1,100-bay layout.
+* `node --check static/app.js` and `node --check static/lab-tools.js` pass; Python modules compile successfully.
+* `docker compose -f docker-compose.yaml config --quiet` passes. The local Docker image was rebuilt and the container runs on port 8002 with its persistent database volume retained.
 * Desktop browser registration and confirmation passed for `ABC-1234` at the Cinema destination.
 * Full-capacity browser scenario passed: 1,100 occupied bays, `XYZ-5678` FIFO #1, exit of `ABC-1234`, fee receipt and promotion of `XYZ-5678` to the released E-27 bay.
 * A* and Merge Sort browser animations completed. A* vs Dijkstra used the same bay: 45 vs 997 expanded nodes, both 820 m.
@@ -57,3 +58,11 @@ The two pasted master prompts supplied in this chat are identical. The PDF is a 
 * Browser car lookup found a seeded Thai plate and rendered its walking path. Settings save, 30-day/custom-date analytics, presentation Previous/Next, bay close/reopen, and incident creation/resolution passed.
 * Final desktop preview is 1440 × 1080. Browser connection failures during a deliberate backend restart were identified as network interruptions, not script exceptions; the final fresh session reported zero console errors or warnings.
 * Screenshots: `output/playwright/desktop.png` and `output/playwright/mobile-visitor.png`.
+
+## Runtime and simulation browser validation
+
+* All four comparisons ran at 1,100 records with seven timed repetitions and at 5,000 records with three repetitions, returned positive measured durations and showed four equal/valid output checks. The older A* vs Dijkstra button also displayed measured median runtimes. Routing used the same Cinema bay and shortest distance for both methods.
+* All 18 cases ran through the UI and reported 18 passes. An individual FIFO handoff case showed expected/actual checks; persisted live visit identities, status, bay, timestamps and events stayed unchanged. Duration counters naturally advance with time.
+* Selected-destination arrival assigned a demo vehicle on floor L9. Two continuous balanced ticks produced an arrival and departure; Pause stopped traffic and Step executed one additional arrival while paused. No rejected-operation warning appeared.
+* Mobile layouts at 390 × 844 contain the benchmark table's horizontal scrolling and stack simulation controls and scenario cards.
+* New screenshots are in `output/playwright`: `efficiency-desktop.png`, `efficiency-mobile.png`, `simulation-desktop.png`, `simulation-mobile.png` and `scenarios-desktop.png`.

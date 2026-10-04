@@ -31,16 +31,18 @@ class FIFOQueue:
         return len(self.items)
 
 
-def merge_sort(items, key=lambda item: item, trace=None):
+def merge_sort(items, key=lambda item: item, trace=None, stats=None):
     if len(items) < 2:
         return list(items)
     mid = len(items) // 2
     if trace is not None:
         trace.append({"operation": "divide", "values": [key(i) for i in items]})
-    left = merge_sort(items[:mid], key, trace)
-    right = merge_sort(items[mid:], key, trace)
+    left = merge_sort(items[:mid], key, trace, stats)
+    right = merge_sort(items[mid:], key, trace, stats)
     output, a, b = [], 0, 0
     while a < len(left) and b < len(right):
+        if stats is not None:
+            stats['comparisons'] = stats.get('comparisons', 0) + 1
         if key(left[a]) <= key(right[b]):
             output.append(left[a]); a += 1
         else:
@@ -48,6 +50,22 @@ def merge_sort(items, key=lambda item: item, trace=None):
     output.extend(left[a:]); output.extend(right[b:])
     if trace is not None:
         trace.append({"operation": "merge", "values": [key(i) for i in output]})
+    return output
+
+
+def insertion_sort(items, key=lambda item: item, stats=None):
+    """Stable explicit O(n²) baseline for the efficiency experiment."""
+    output = list(items)
+    for index in range(1, len(output)):
+        value, position = output[index], index - 1
+        while position >= 0:
+            if stats is not None:
+                stats['comparisons'] = stats.get('comparisons', 0) + 1
+            if key(output[position]) <= key(value):
+                break
+            output[position + 1] = output[position]
+            position -= 1
+        output[position + 1] = value
     return output
 
 

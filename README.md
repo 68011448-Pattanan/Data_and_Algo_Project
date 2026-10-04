@@ -21,8 +21,8 @@ Alternatively, run `./start.ps1` in a PowerShell session that allows local scrip
 Docker Desktop alternative:
 
 ```powershell
-docker compose -f docker.yaml up --build -d
-docker compose -f docker.yaml down
+docker compose -f docker-compose.yaml up --build -d
+docker compose -f docker-compose.yaml down
 ```
 
 The Docker named volume retains the database. Local storage is `data/parking.sqlite3`. Use exactly **one backend worker**. `Version 1` is preserved and uses a separate database.
@@ -48,7 +48,7 @@ These views demonstrate stakeholder workflows. They are not authenticated roles 
 7. Switch to Security staff. Record an exit for `ABC-1234`. A receipt shows duration and fee; the oldest waiter receives the released bay atomically.
 8. Inspect Waiting queue and the event stream. Return to Find my car for `XYZ-5678` and confirm its assigned bay.
 9. Open Parking history. Change the direction or filter by plate. Ordering uses explicit Merge Sort.
-10. Open Algorithm lab. Run/animate A*, animate Merge Sort and compare A* with Dijkstra on the same entrance-to-bay example.
+10. Open Algorithm lab. Run the efficiency comparison at 100, 1,100 or 5,000 records, inspect measured runtimes and work counts, then animate A* and Merge Sort.
 11. Open Analytics. Explore Today, 7 days, 30 days or a custom date range, occupancy, entries/exits, duration and usage heatmap.
 12. Open Presentation for the 12-step guided walkthrough. Previous, Next and Fullscreen controls are provided.
 
@@ -116,7 +116,35 @@ Charts reconstruct occupied/assigned bay counts at Bangkok hour boundaries from 
 
 Analytics include completed revenue, entry/exit totals, duration bands, arrivals per hour (including waiting visitors), assignment heatmap, top bays, average completed duration and uses per day. Heatmap counts assignments in the selected period; top-bay durations use only completed visits. The dashboard's average turnover is today's completed visits divided by physical bays. Interpret demand using the exact definitions in the UI; correlation with proximity is not a causal claim.
 
-Simulation offers single entry/exit, 10/100 arrivals, fill, create queue, clear demo records and reset the dataset. Clear/reset preserves manual visits, settings, incidents and bay closures. Reset historical seed visits are generated at the reset time. Notifications are local in-app events and queue status polls every five seconds while the page is open.
+Simulation control offers single entry/exit, selected-size batches, destination selection, fill, create queue, clear demo records and reset the dataset. Simulated exits select demo vehicles only. Clear/reset preserves manual visits, settings, incidents and bay closures. Reset historical seed visits are generated at the reset time. Notifications are local in-app events and queue status polls every five seconds while the page is open.
+
+## Measured algorithm efficiency
+
+Open **Algorithm lab → Algorithm efficiency bench**. Choose 100, 500, 1,100 or 5,000 synthetic records, 3–15 repetitions, and a routing destination. The lot stays at 1,100 bays; input size changes the lookup, queue and sorting experiments only.
+
+| Task | Primary implementation | Equivalent baseline | Same input / output check |
+| --- | --- | --- | --- |
+| Routing | A* | Dijkstra | Same entrance, bay and weighted graph; equal shortest distance |
+| Vehicle lookup | Plate dictionary | Linear search | Same 100 queries, 75 hits and 25 misses; equal visit IDs |
+| Waiting queue | FIFOQueue backed by deque | List `pop(0)` | Drain fresh queues of the same size; identical FIFO output |
+| History ordering | Explicit stable Merge Sort | Explicit stable Insertion Sort | Same shuffled records and full timestamp keys; identical stable ordering |
+
+The backend uses `perf_counter_ns`, one warm-up per method, and repeated timings. Results show median, mean, minimum/maximum, per-operation time where relevant, individual samples, relative runtime, complexity and work counts. Input creation and validation happen outside the measured interval. Work counts are instrumented separately; list reference shifts are explicitly theoretical. Database work, JSON/network latency and frontend animations are excluded. A* timing covers one search; selecting the recommended bay happens before timing. If the lot is full, the bench uses a physical bay and labels the result as a route-only comparison.
+
+Compare runtimes **within the same task**, not between unrelated tasks. These are local implementation measurements, not guaranteed speedups or a production capacity estimate. CPU load, input distribution, caches and interpreter overhead affect results; deque can lose to list removal on small inputs. The older A* vs Dijkstra demonstration also reports median runtime over seven repetitions.
+
+## Simulation control mode
+
+Open **Simulation control** from the administrator or security view, or use **Simulation tools → Open simulation control mode**. This carries forward Version 1's destination and entry/exit/generate/clear controls and adds:
+
+1. Select a destination or random distribution, then simulate one arrival or generate 1/5/10/100 vehicles. The engine chooses a reachable open bay, or queues the arrival.
+2. Use **Start traffic**, **Pause traffic**, or **Step one traffic tick**. Choose balanced arrivals/exits, arrivals only, departures only, or rush traffic, with a 2/5/10-second interval. Automatic batches are capped at 10; a queue of 100 triggers demo departures. Traffic runs while the tab stays open and pauses on role changes or page close.
+3. Observe live capacity, queue counts and events. Fill, queue, clear and reset controls operate on demo data while preserving manual visits, closures, settings and incidents. Automatic and manual simulated exits affect demo vehicles only.
+4. Use **Run all scenario checks** or an individual **Run case**. Each case executes actual parking-engine operations in its own disposable 11-floor database. Results show pass/fail, expected and actual checks, steps, final lot counts and elapsed runtime. They leave live parking records unchanged.
+
+The 18 cases cover normal arrival/confirmation/lookup, duplicate plates, invalid plates, unknown vehicles, a full destination floor, all bays full, FIFO handoff after exit, cancellation of a middle waiter, closed bays, reopening, blocked routes, the free-hour fee boundary, re-entry after exit, concurrent arrivals, out-of-order stable history, database restart recovery, transaction rollback and clearing demo records while keeping manual visits.
+
+Scenario runtimes include fixture creation, database operations and validation; they are separate from algorithm-only timings. The cases cover implemented operating conditions and failure boundaries, not every possible production integration failure.
 
 ## Folder structure
 
@@ -124,14 +152,18 @@ Simulation offers single entry/exit, 10/100 arrivals, fill, create queue, clear 
 app/algorithms.py     A*, Dijkstra comparison, Merge Sort, FIFOQueue, graph
 app/store.py          State transitions, persistence, fees, simulation, analytics
 app/main.py           Validated REST API, frontend serving
+app/benchmarks.py     Repeated timings and equivalent-task comparisons
+app/scenarios.py      18 isolated operational scenario checks
 static/index.html     Application shell
 static/styles.css     Responsive layout and map styling
 static/app.js         Stakeholder workflows, SVG maps/charts, animations
+static/lab-tools.js   Runtime results, simulation controls and scenario reports
 tests/test_parking.py Algorithm, transaction, concurrency and API checks
+tests/test_lab_tools.py Benchmark fairness, scenario isolation and control checks
 data/                 Runtime SQLite database (ignored by Git)
 start.ps1             Windows launcher
 Dockerfile            Container build
-docker.yaml           Local service with persistent volume
+docker-compose.yaml           Local service with persistent volume
 REQUIREMENTS.md        Coverage and prototype limitations
 ```
 
@@ -141,10 +173,11 @@ REQUIREMENTS.md        Coverage and prototype limitations
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python -m unittest discover -s tests -v
 node --check static/app.js
-docker compose -f docker.yaml config --quiet
+node --check static/lab-tools.js
+docker compose -f docker-compose.yaml config --quiet
 ```
 
-Automated checks cover 11 × 100 capacity, A* against independently implemented Dijkstra distances, disconnected paths, Merge Sort stability/trace, fee boundaries, Thai plates, assignment/confirmation/exit, cross-floor fallback, FIFO promotion, cancellation, duplicates, closures/reopening, persistence, concurrent arrivals, rollback, settings, analytics and API validation. Browser validation details are in `REQUIREMENTS.md`.
+The 33 automated tests cover measured outputs, stable baselines, scenario isolation, selected destinations, demo-only exits, all 18 cases, and 11 × 100 capacity, A* against independently implemented Dijkstra distances, disconnected paths, Merge Sort stability/trace, fee boundaries, Thai plates, assignment/confirmation/exit, cross-floor fallback, FIFO promotion, cancellation, duplicates, closures/reopening, persistence, concurrent arrivals, rollback, settings, analytics and API validation. Browser validation details are in `REQUIREMENTS.md`.
 
 ## Configuration and scope
 

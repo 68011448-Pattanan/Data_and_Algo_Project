@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 
 from .algorithms import astar, dijkstra, merge_sort
 from .store import ParkingError, ParkingStore
+from .benchmarks import benchmark, measure
+from .scenarios import catalog, run_scenarios
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,7 +26,7 @@ async def lifespan(app):
     app.state.parking.close()
 
 
-app = FastAPI(title='Parkside · Mall Parking', version='2.0.0', lifespan=lifespan)
+app = FastAPI(title='Parkside · Mall Parking', version='2.1.0', lifespan=lifespan)
 app.mount('/static', StaticFiles(directory=ROOT/'static'), name='static')
 
 
@@ -57,6 +59,17 @@ class Settings(BaseModel):
 class Simulation(BaseModel):
     action: Literal['entry','exit','generate','fill','clear','reset','queue']
     count: int = Field(default=10,ge=1,le=100)
+    destination: int | None = Field(default=None,ge=0,le=10)
+
+
+class BenchmarkInput(BaseModel):
+    size: int = Field(default=1100,ge=10,le=5000)
+    repeats: int = Field(default=7,ge=3,le=15)
+    destination: int = Field(default=0,ge=0,le=10)
+
+
+class ScenarioInput(BaseModel):
+    case: str = Field(default='all',max_length=40)
 
 
 class Incident(BaseModel):
@@ -132,7 +145,7 @@ def settings(body: Settings,request: Request):
 
 @app.post('/api/simulate')
 def simulate(body: Simulation,request: Request):
-    return request.app.state.parking.simulate(body.action,body.count)
+    return request.app.state.parking.simulate(body.action,body.count,body.destination)
 
 
 @app.post('/api/incidents',status_code=201)
@@ -170,7 +183,25 @@ def compare(request: Request,destination: int=Query(default=0,ge=0,le=10)):
         if not result:
             raise ParkingError('No available connected bays for a comparison.')
         start,goal=(0,0,4),store.slots[result['slot']]['node']
-        a=astar(store.graph,start,goal)
-        d=dijkstra(store.graph,start,goal)
-        return {'slot':result['slot'],'astar':{'distance':a['distance'],'expanded':a['expanded']},
-                'dijkstra':{'distance':d['distance'],'expanded':d['expanded']}}
+        graph=store.graph
+        slot=result['slot']
+    a_time,a=measure(lambda:None,lambda _:astar(graph,start,goal),7)
+    d_time,d=measure(lambda:None,lambda _:dijkstra(graph,start,goal),7)
+    return {'slot':slot,'astar':{'distance':a['distance'],'expanded':a['expanded'],**a_time},
+            'dijkstra':{'distance':d['distance'],'expanded':d['expanded'],**d_time}}
+
+
+@app.post('/api/algorithms/benchmark')
+def efficiency(body: BenchmarkInput, request: Request):
+    return benchmark(request.app.state.parking,body.size,body.repeats,body.destination)
+
+
+@app.get('/api/simulation/scenarios')
+def scenarios():
+    return {'scenarios':catalog()}
+
+
+@app.post('/api/simulation/scenarios')
+def check_scenarios(body: ScenarioInput,request: Request):
+    store=request.app.state.parking
+    return run_scenarios(body.case,store.floor_count,store.bays)
