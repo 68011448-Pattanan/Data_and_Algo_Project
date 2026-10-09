@@ -77,16 +77,19 @@ def astar(graph, start, goal, trace=False, use_heuristic=True):
     sequence = count()
     estimate = heuristic if use_heuristic else lambda a,b: 0
     frontier = [(estimate(start, goal), next(sequence), 0, start)]
-    costs, previous, explored, steps = {start: 0}, {}, [], []
+    costs, previous, explored, steps, stale = {start: 0}, {}, [], [], 0
     while frontier:
         f, _, distance, current = heappop(frontier)
         if distance != costs[current]:
+            stale += 1
             continue
         explored.append(current)
         if trace:
+            # parent/relaxed/stale let the lab replay the open list at any step.
             steps.append({"node": current, "g": distance, "h": estimate(current, goal),
                           "f": f, "open": len(frontier), "closed": len(explored),
-                          "open_nodes": [entry[3] for entry in frontier]})
+                          "open_nodes": [entry[3] for entry in frontier],
+                          "parent": previous.get(current), "stale": stale, "relaxed": []})
         if current == goal:
             path = [current]
             while current in previous:
@@ -98,6 +101,9 @@ def astar(graph, start, goal, trace=False, use_heuristic=True):
             candidate = distance + weight
             if candidate < costs.get(neighbor, float("inf")):
                 costs[neighbor], previous[neighbor] = candidate, current
+                if trace:
+                    steps[-1]["relaxed"].append({"node": neighbor, "weight": weight, "g": candidate,
+                                                 "h": estimate(neighbor, goal)})
                 heappush(frontier, (candidate + estimate(neighbor, goal), next(sequence), candidate, neighbor))
     return None
 

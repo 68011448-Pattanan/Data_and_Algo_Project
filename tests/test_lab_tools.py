@@ -103,3 +103,27 @@ class ScenarioTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class AstarLabTraceTests(unittest.TestCase):
+    def test_trace_replays_open_list_and_matches_dijkstra_distance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ,{'PARKING_DB':str(Path(directory)/'test.sqlite3'),'SEED_DEMO':'false','PARKING_FLOORS':'11','BAYS_PER_FLOOR':'100'}):
+                with TestClient(app) as client:
+                    graph=client.get('/api/algorithms/graph').json()
+                    self.assertEqual(graph['columns'],25)
+                    traces={m:client.get(f'/api/algorithms/astar/trace?destination=5&slot=F-40&mode={m}').json() for m in ('astar','dijkstra')}
+                    a,d=traces['astar'],traces['dijkstra']
+                    self.assertEqual(a['distance'],d['distance'])
+                    self.assertLess(a['expanded'],d['expanded'])
+                    self.assertEqual(a['steps'][-1]['node'],a['goal'])
+                    self.assertNotIn('open_nodes',a['steps'][0])
+                    # Each popped node (after the start) was relaxed earlier with the g it is popped at.
+                    best={tuple(a['start']):0}
+                    for s in a['steps']:
+                        self.assertEqual(best[tuple(s['node'])],s['g'])
+                        for r in s['relaxed']:
+                            best[tuple(r['node'])]=r['g']
+                    walking=client.get('/api/algorithms/astar/trace?destination=5&leg=walking&slot=F-40').json()
+                    self.assertEqual(walking['start'],a['goal'])
+                    self.assertEqual(client.get('/api/algorithms/astar/trace?slot=Z-99').status_code,400)

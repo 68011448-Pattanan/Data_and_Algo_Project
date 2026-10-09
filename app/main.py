@@ -175,6 +175,44 @@ def astar_demo(request: Request,destination: int=Query(default=0,ge=0,le=10)):
         return {'algorithm':result,'route':store._route({'slot':result['slot'],'destination':destination}) if result else None}
 
 
+@app.get('/api/algorithms/graph')
+def astar_graph(request: Request):
+    store = request.app.state.parking
+    edges = [[a, b, w] for a, near in store.graph.items() for b, w in near.items() if a < b]
+    return {'columns': store.columns, 'edges': edges}
+
+
+@app.get('/api/algorithms/astar/trace')
+def astar_trace(request: Request, destination: int=Query(default=0,ge=0,le=10),
+                leg: Literal['driving','walking']='driving', mode: Literal['astar','dijkstra']='astar',
+                slot: str | None=Query(default=None,max_length=8)):
+    """Full expansion trace for the A* lab; slot overrides the recommended bay."""
+    store = request.app.state.parking
+    with store.lock:
+        if destination >= len(store.destinations):
+            raise ParkingError('Unknown destination.')
+        if slot:
+            slot = slot.strip().upper()
+            if slot not in store.slots:
+                raise ParkingError(f'Bay {slot} does not exist.')
+            recommended = False
+        else:
+            result = store._assignment(destination)
+            if not result:
+                raise ParkingError('No available connected bays. Enter a bay ID to trace a route anyway.')
+            slot, recommended = result['slot'], True
+        bay, target = store.slots[slot]['node'], store.destinations[destination]['node']
+        graph = store.graph
+    start, goal = ((0, 0, 4), bay) if leg == 'driving' else (bay, target)
+    search = astar(graph, start, goal, trace=True, use_heuristic=mode == 'astar')
+    if search is None:
+        raise ParkingError('No connected route between these nodes.')
+    steps = [{k: v for k, v in s.items() if k != 'open_nodes'} for s in search['steps']]
+    return {'slot': slot, 'recommended': recommended, 'destination': destination, 'leg': leg, 'mode': mode,
+            'start': start, 'goal': goal, 'path': search['path'], 'distance': search['distance'],
+            'expanded': search['expanded'], 'steps': steps}
+
+
 @app.get('/api/algorithms/compare')
 def compare(request: Request,destination: int=Query(default=0,ge=0,le=10)):
     store=request.app.state.parking

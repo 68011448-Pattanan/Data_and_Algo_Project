@@ -27,10 +27,10 @@ docker compose -f docker-compose.yaml down
 
 Docker runs two servers:
 
-| Service | URL | Contents |
-|---|---|---|
-| `parking-api` | http://localhost:8002 (docs: http://localhost:8002/docs) | FastAPI and its embedded SQLite database |
-| `parking-frontend` | http://localhost:3000 | nginx serving `static/` and proxying `/api` to `parking-api` |
+| Service              | URL                                                      | Contents                                                          |
+| -------------------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
+| `parking-api`      | http://localhost:8002 (docs: http://localhost:8002/docs) | FastAPI and its embedded SQLite database                          |
+| `parking-frontend` | http://localhost:3000                                    | nginx serving`static/` and proxying `/api` to `parking-api` |
 
 The `parking-v2-data` named volume retains the database. Local storage is `data/parking.sqlite3`. Use exactly **one backend worker**. `Version 1` is preserved and uses a separate database.
 
@@ -129,11 +129,11 @@ Simulation control offers single entry/exit, selected-size batches, destination 
 
 Open **Algorithm lab → Experimental results** in the academic report. Choose 100, 500, 1,100 or 5,000 synthetic records, 3–15 repetitions, and a routing destination. The lot stays at 1,100 bays; input size changes the lookup, queue and sorting experiments only.
 
-| Task | Primary implementation | Equivalent baseline | Same input / output check |
-| --- | --- | --- | --- |
-| Routing | A* | Dijkstra | Same entrance, bay and weighted graph; equal shortest distance |
-| Vehicle lookup | Plate dictionary | Linear search | Same 100 queries, 75 hits and 25 misses; equal visit IDs |
-| Waiting queue | FIFOQueue backed by deque | List `pop(0)` | Drain fresh queues of the same size; identical FIFO output |
+| Task             | Primary implementation     | Equivalent baseline            | Same input / output check                                                |
+| ---------------- | -------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| Routing          | A*                         | Dijkstra                       | Same entrance, bay and weighted graph; equal shortest distance           |
+| Vehicle lookup   | Plate dictionary           | Linear search                  | Same 100 queries, 75 hits and 25 misses; equal visit IDs                 |
+| Waiting queue    | FIFOQueue backed by deque  | List`pop(0)`                 | Drain fresh queues of the same size; identical FIFO output               |
 | History ordering | Explicit stable Merge Sort | Explicit stable Insertion Sort | Same shuffled records and full timestamp keys; identical stable ordering |
 
 The backend uses `perf_counter_ns`, one warm-up per method, and repeated timings. Results show median, mean, minimum/maximum, per-operation time where relevant, individual samples, relative runtime, complexity and work counts. Input creation and validation happen outside the measured interval. Work counts are instrumented separately; list reference shifts are explicitly theoretical. Database work, JSON/network latency and frontend animations are excluded. A* timing covers one search; selecting the recommended bay happens before timing. If the lot is full, the bench uses a physical bay and labels the result as a route-only comparison.
