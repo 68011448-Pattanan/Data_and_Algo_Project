@@ -25,7 +25,14 @@ docker compose -f docker-compose.yaml up --build -d
 docker compose -f docker-compose.yaml down
 ```
 
-The Docker named volume retains the database. Local storage is `data/parking.sqlite3`. Use exactly **one backend worker**. `Version 1` is preserved and uses a separate database.
+Docker runs two servers:
+
+| Service | URL | Contents |
+|---|---|---|
+| `parking-api` | http://localhost:8002 (docs: http://localhost:8002/docs) | FastAPI and its embedded SQLite database |
+| `parking-frontend` | http://localhost:3000 | nginx serving `static/` and proxying `/api` to `parking-api` |
+
+The `parking-v2-data` named volume retains the database. Local storage is `data/parking.sqlite3`. Use exactly **one backend worker**. `Version 1` is preserved and uses a separate database.
 
 ## Stakeholder views
 
@@ -120,7 +127,7 @@ Simulation control offers single entry/exit, selected-size batches, destination 
 
 ## Measured algorithm efficiency
 
-Open **Algorithm lab → Algorithm efficiency bench**. Choose 100, 500, 1,100 or 5,000 synthetic records, 3–15 repetitions, and a routing destination. The lot stays at 1,100 bays; input size changes the lookup, queue and sorting experiments only.
+Open **Algorithm lab → Experimental results** in the academic report. Choose 100, 500, 1,100 or 5,000 synthetic records, 3–15 repetitions, and a routing destination. The lot stays at 1,100 bays; input size changes the lookup, queue and sorting experiments only.
 
 | Task | Primary implementation | Equivalent baseline | Same input / output check |
 | --- | --- | --- | --- |
@@ -131,7 +138,19 @@ Open **Algorithm lab → Algorithm efficiency bench**. Choose 100, 500, 1,100 or
 
 The backend uses `perf_counter_ns`, one warm-up per method, and repeated timings. Results show median, mean, minimum/maximum, per-operation time where relevant, individual samples, relative runtime, complexity and work counts. Input creation and validation happen outside the measured interval. Work counts are instrumented separately; list reference shifts are explicitly theoretical. Database work, JSON/network latency and frontend animations are excluded. A* timing covers one search; selecting the recommended bay happens before timing. If the lot is full, the bench uses a physical bay and labels the result as a route-only comparison.
 
-Compare runtimes **within the same task**, not between unrelated tasks. These are local implementation measurements, not guaranteed speedups or a production capacity estimate. CPU load, input distribution, caches and interpreter overhead affect results; deque can lose to list removal on small inputs. The older A* vs Dijkstra demonstration also reports median runtime over seven repetitions.
+Compare runtimes **within the same task**, not between unrelated tasks. These are local implementation measurements, not guaranteed speedups or a production capacity estimate. CPU load, input distribution, caches and interpreter overhead affect results; deque can lose to list removal on small inputs. The supplementary A* vs Dijkstra demonstration also reports median runtime over seven repetitions.
+
+## Academic algorithm report
+
+The Algorithm lab is organized as a report with an abstract, formal graph model and heuristic equations, algorithm pseudocode and correctness conditions, complexity analysis, experimental methodology, measured results, discussion and references. Numbered Tables 1–5 and Figure 1 distinguish theoretical analysis from measured performance. The runtime chart uses separate zero-based scales for each task.
+
+Run an experiment under section 4 before exporting results. A completed snapshot records its UTC timestamp, Python implementation/version, backend OS/architecture, visible logical CPU count, reported clock resolution, graph vertices/edges and source dataset parameters. Editing the experiment controls does not change the labels or data of that snapshot. CPU metadata reflects the backend (potentially a Docker guest); it is not a verified host hardware specification. Refreshing the page clears the client-side result snapshot, so export it before refreshing.
+
+* **Print / save PDF:** opens the browser print dialog. The A4 report hides workspace navigation, controls and interactive demonstrations, keeps tables together, and adds page numbers. Use your browser's Save as PDF destination; disable its default URL/date headers if desired.
+* **Export report (.md):** downloads the report narrative, pseudocode, references, methodology, measured statistics, individual samples and environment metadata as editable Markdown. Before measurement, it explicitly states that no empirical result is available.
+* **Export results (.csv):** downloads eight method rows with full numeric timings, sample arrays, work counts, validation results and repeated experiment metadata for spreadsheet analysis. It requires a completed experiment.
+
+Median is descriptive, not a statistical significance claim. The report discloses fixed measurement order, one seeded input distribution, timing exclusions, clock precision limits, theoretical list shifts and batch-averaged per-operation values. The discussion adapts to the observed winner rather than assuming the selected implementation always wins. The interactive registry, queue, A* and Merge Sort demonstrations remain in the supplementary appendix.
 
 ## Simulation control mode
 
@@ -157,13 +176,16 @@ app/scenarios.py      18 isolated operational scenario checks
 static/index.html     Application shell
 static/styles.css     Responsive layout and map styling
 static/app.js         Stakeholder workflows, SVG maps/charts, animations
-static/lab-tools.js   Runtime results, simulation controls and scenario reports
+static/lab-tools.js   Experiment state, simulation controls and scenario reports
+static/academic.js    Academic report, methodology, measured figures and exports
+static/academic.css   Report typography, responsive tables and A4 print styling
 tests/test_parking.py Algorithm, transaction, concurrency and API checks
 tests/test_lab_tools.py Benchmark fairness, scenario isolation and control checks
 data/                 Runtime SQLite database (ignored by Git)
 start.ps1             Windows launcher
 Dockerfile            Container build
-docker-compose.yaml           Local service with persistent volume
+docker-compose.yaml   API + database server and nginx frontend server
+nginx/default.conf    Frontend static files and /api proxy
 REQUIREMENTS.md        Coverage and prototype limitations
 ```
 
@@ -174,6 +196,7 @@ REQUIREMENTS.md        Coverage and prototype limitations
 .\.venv\Scripts\python -m unittest discover -s tests -v
 node --check static/app.js
 node --check static/lab-tools.js
+node --check static/academic.js
 docker compose -f docker-compose.yaml config --quiet
 ```
 

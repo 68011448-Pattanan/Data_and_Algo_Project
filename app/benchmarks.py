@@ -1,8 +1,10 @@
 """Repeatable comparisons of equivalent tasks; timings exclude setup and validation."""
 import random
+import os
+import platform
 from datetime import datetime, timedelta, timezone
 from statistics import median, mean
-from time import perf_counter_ns
+from time import perf_counter_ns, get_clock_info
 
 from .algorithms import FIFOQueue, astar, dijkstra, insertion_sort, merge_sort
 
@@ -88,6 +90,15 @@ def benchmark(store, size=1100, repeats=7, destination=0):
     i.update(name='Insertion Sort', complexity='O(n²)', work=insertion_stats['comparisons'], work_label='key comparisons')
     pairs.append(pair('History sorting', f'Same {size:,} shuffled visit records; stable full ordering', m, i,
                       m_output == i_output and all(m_output[j]['entry'] <= m_output[j+1]['entry'] for j in range(size-1))))
-    return {'size': size, 'repeats': repeats, 'destination': destination, 'capacity': capacity,
+    clock = get_clock_info('perf_counter')
+    return {'measured_at': datetime.now(timezone.utc).isoformat(),
+            'environment': {'python': platform.python_version(), 'implementation': platform.python_implementation(),
+                            'system': platform.system(), 'release': platform.release(), 'machine': platform.machine(),
+                            'logical_cpus': os.cpu_count(), 'timer': 'perf_counter_ns',
+                            'clock_resolution_ns': clock.resolution * 1_000_000_000,
+                            'clock_monotonic': clock.monotonic},
+            'graph': {'vertices': len(graph), 'undirected_edges': sum(len(neighbors) for neighbors in graph.values()) // 2,
+                      'start': start, 'goal': goal},
+            'size': size, 'repeats': repeats, 'destination': destination, 'capacity': capacity,
             'floors': floor_count, 'seed': 206, 'pairs': pairs,
             'methodology': 'Server perf_counter_ns; one warm-up; median of repeated runs. Input creation, instrumentation, validation, animation, database work and network time excluded. Compare within each task only. Synthetic lookup/queue/sort records do not modify the parking lot. Runtime is machine- and input-dependent; deque can lose on small inputs because Python method overhead is included.'}

@@ -25,7 +25,8 @@ The two pasted master prompts supplied in this chat are identical. The PDF is a 
 | Peak hours | Peak and average sampled occupancy, clock hour and arrival rate derived from stored visits |
 | Analytics insights | Dynamic top-bay and peak-hour summaries; explicitly avoids causal claims without evidence |
 | Data lifecycle | Actual state transitions persisted in SQLite; architecture and project pages explain the lifecycle |
-| Algorithm lab | Real hash/queue operations, A* recommendation/animation, Merge Sort animation and complexity explanations |
+| Algorithm lab | Academic report: abstract, model/equations, pseudocode, correctness, complexity, methodology, Tables 1–5, Figure 1, measured discussion, limitations, references and supplementary interactive demonstrations |
+| Report exports | A4 print/PDF layout with page numbers, editable Markdown report, CSV measurements and raw samples with backend environment metadata |
 | Algorithm efficiency | A* vs Dijkstra, hash vs linear lookup, deque vs list front removal, Merge Sort vs Insertion Sort; repeated measured runtimes, median/mean/range, samples, work counts and validated equal outputs |
 | Architecture | Clickable component diagram with role explanations; animated flow arrows |
 | Simulation | Dedicated control page: selected destination, 1/5/10/100 arrivals, demo-only exits, fill/queue/clear/reset, timed traffic with start/pause/step and four traffic modes |
@@ -66,3 +67,11 @@ The two pasted master prompts supplied in this chat are identical. The PDF is a 
 * Selected-destination arrival assigned a demo vehicle on floor L9. Two continuous balanced ticks produced an arrival and departure; Pause stopped traffic and Step executed one additional arrival while paused. No rejected-operation warning appeared.
 * Mobile layouts at 390 × 844 contain the benchmark table's horizontal scrolling and stack simulation controls and scenario cards.
 * New screenshots are in `output/playwright`: `efficiency-desktop.png`, `efficiency-mobile.png`, `simulation-desktop.png`, `simulation-mobile.png` and `scenarios-desktop.png`.
+
+## Academic report validation
+
+* All four equivalent-task comparisons populated the report with matched outputs, five numbered tables, the measured runtime figure, raw samples and timestamped backend metadata. Full-capacity routing was explicitly labeled route-only.
+* Markdown and CSV downloads passed. The CSV contains eight method rows with matching validations and positive numeric durations. Report-section links preserve the Algorithm lab route, and changing controls preserves the completed measurement snapshot.
+* Desktop and 390 × 844 mobile layouts were checked. Merge Sort animation and navigation to/from Simulation control remained functional.
+* The browser print layout was rendered to an A4 PDF and visually reviewed. Navigation, controls, demonstrations and the end marker are omitted; tables remain together and page numbers are present.
+* Screenshots: `output/playwright/academic-desktop.png`, `academic-results.png`, `academic-mobile.png` and `academic-mobile-results.png`.
